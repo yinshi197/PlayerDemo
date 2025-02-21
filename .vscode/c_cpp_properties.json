@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "D://FFmpeg//SDL-release-2.30.6//build64//include",   //库文件位置
+                "D://FFmpeg//ffmpeg-7.0-fdk_aac//include",   //库文件位置
+                "D://QT//6.8.1//mingw_64//include//**"          //Qt库，方便代码提示
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}

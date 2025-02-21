@@ -1,0 +1,71 @@
+
+*{
+    background:#2e2f37;
+    color:white;
+}
+
+QPushButton{
+    color:  white;
+}
+QPushButton:hover{
+    color:  Cyan;
+}
+QPushButton:pressed {
+    color:  CadetBlue;
+}
+
+/*****列表*******/
+QListWidget{
+     border: 1px solid Black;
+}
+QListWidget::item:hover{
+    /*background: Cyan;*/
+    padding: 0px;
+    margin: 1px;
+    color: Cyan;
+    border: 1px solid Cyan;
+}
+QListWidget::item:selected {
+    background: Cyan;
+    padding: 0px;
+    margin: 1px;
+    color: black;
+    border: 1px solid Cyan;
+}
+
+
+
+QScrollBar:vertical {
+    width: 10px;
+    background: transparent;
+}
+QScrollBar::handle:vertical {
+    min-height: 30px;
+    background: #202129;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+QScrollBar::handle:vertical:hover {
+    background: rgb(80, 80, 80);
+}
+QScrollBar::sub-line:vertical {
+    height: 0px;
+    background: transparent;
+    image: url(:/Black/arrowTop);
+    subcontrol-position: top;
+}
+QScrollBar::add-line:vertical {
+    height: 0px;
+    background: transparent;
+    image: url(:/Black/arrowBottom);
+    subcontrol-position: bottom;
+}
+QScrollBar::sub-line:vertical:hover {
+    background: rgb(68, 69, 73);
+}
+QScrollBar::add-line:vertical:hover {
+    background: rgb(68, 69, 73);
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+}
