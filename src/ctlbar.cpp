@@ -171,11 +171,35 @@ void CtrBar::ConnectSig()
     connect(volumeSlider, &CustomSlider::SigCustomSliderValueChanged, this, &CtrBar::OnVolumeSliderValueChanged);
     connect(backwardButton, &QPushButton::clicked, this, &CtrBar::SigBackwardPlay);
     connect(forwardButton, &QPushButton::clicked, this, &CtrBar::SigForwardPlay);
+
+    connect(playPauseButton, &QPushButton::clicked, this, [=](){
+        emit SigPlayOrPause();
+    });
+
+    connect(stopButton, &QPushButton::clicked, this, [=](){
+        emit SigStop();
+    });
+
+    connect(backwardButton, &QPushButton::clicked, this, [=](){
+        emit SigBackwardPlay();
+    });
+
+    connect(forwardButton, &QPushButton::clicked, this, [=](){
+        emit SigForwardPlay();
+    });
 }
 
 void CtrBar::OnVideoTotalSeconds(int nSeconds)
 {
-    
+    m_totalPlaySeconds = nSeconds;
+
+    int thh, tmm, tss;
+    thh = nSeconds / 3600;
+    tmm = (nSeconds % 3600) / 60;
+    tss = (nSeconds % 60);
+    QTime TotalTime(thh, tmm, tss);
+
+    totalTimeDisplay->setTime(TotalTime);
 }
 
 void CtrBar::OnVideoPlaySeconds(int nSeconds)
@@ -199,7 +223,16 @@ void CtrBar::OnVideopVolume(double dPercent)
 
 void CtrBar::OnPauseStat(bool bPaused)
 {
-
+    if (bPaused)
+    {
+        GlobalHelper::SetIcon(playPauseButton, 15, QChar(0xf04b));
+        playPauseButton->setToolTip("播放");
+    }
+    else
+    {
+        GlobalHelper::SetIcon(playPauseButton, 15, QChar(0xf04c));
+        playPauseButton->setToolTip("暂停");
+    }
 }
 
 void CtrBar::OnStopFinished()
@@ -211,7 +244,7 @@ void CtrBar::OnPlaySliderValueChanged()
 {
     double dPercent = playbackSlider->value()*1.0 / playbackSlider->maximum();
     emit SigPlaySeek(dPercent);
-    //qDebug() << "PlaySilder value = " << dPercent;
+    qDebug() << "PlaySilder value = " << dPercent;
 }
 
 void CtrBar::OnVolumeSliderValueChanged()

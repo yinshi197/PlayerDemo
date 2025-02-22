@@ -57,7 +57,6 @@ void VideoCtl::StartPlay(QString strFileName, WId widPlayWid)
 
     std::string stdStrFileName = strFileName.toStdString();
     input_filename = stdStrFileName.c_str();
-    emit SigStartPlay(strFileName); // 正式播放，发送给标题栏
     play_wid = widPlayWid;
 
     if (!display_disable)
@@ -151,6 +150,8 @@ void VideoCtl::StartPlay(QString strFileName, WId widPlayWid)
         do_exit();
     }
 
+    //m_CurVideoState->opaque = this;
+    
     m_CurVideoState->width = w;
     m_CurVideoState->height = h;
 
@@ -244,8 +245,6 @@ bool VideoCtl::Init()
 {
     if (m_initIndex)
         return true;
-
-    ConnectSig();
 
     int flags, ret;
 
@@ -343,7 +342,13 @@ void VideoCtl::stream_open(const char *filename, const AVInputFormat *iformat)
     m_CurVideoState->audio.audio_volume = startup_volume;
     m_CurVideoState->audio.muted = 0;
     m_CurVideoState->av_sync_type = av_sync_type;
-    m_CurVideoState->read_tid = SDL_CreateThread(read_thread, "read_thread", m_CurVideoState);
+    m_CurVideoState->read_tid = SDL_CreateThread(
+        [](void *arg) -> int {
+            VideoState *is = reinterpret_cast<VideoState *>(arg);
+            VideoCtl *videoCtl = reinterpret_cast<VideoCtl *>(is->opaque);
+            return read_thread(arg, videoCtl);
+        }, 
+        "read_thread", m_CurVideoState);
     if (!m_CurVideoState->read_tid)
     {
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateThread(): %s\n", SDL_GetError());
@@ -365,11 +370,6 @@ void VideoCtl::event_loop()
         switch (event.type)
         {
         case SDL_MOUSEBUTTONDOWN:
-            if (exit_on_mousedown)
-            {
-                do_exit();
-                break;
-            }
             if (event.button.button == SDL_BUTTON_LEFT)
             {
                 static int64_t last_mouse_left_click = 0;
@@ -384,6 +384,8 @@ void VideoCtl::event_loop()
                     last_mouse_left_click = av_gettime_relative();
                 }
             }
+            break;
+
         case SDL_MOUSEMOTION:
             if (cursor_hidden)
             {
@@ -391,45 +393,6 @@ void VideoCtl::event_loop()
                 cursor_hidden = 0;
             }
             cursor_last_shown = av_gettime_relative();
-            if (event.type == SDL_MOUSEBUTTONDOWN)
-            {
-                if (event.button.button != SDL_BUTTON_RIGHT)
-                    break;
-                x = event.button.x;
-            }
-            else
-            {
-                if (!(event.motion.state & SDL_BUTTON_RMASK))
-                    break;
-                x = event.motion.x;
-            }
-            if (seek_by_bytes || m_CurVideoState->ic->duration <= 0)
-            {
-                uint64_t size = avio_size(m_CurVideoState->ic->pb);
-                stream_seek(m_CurVideoState, size * x / m_CurVideoState->width, 0, 1);
-            }
-            else
-            {
-                int64_t ts;
-                int ns, hh, mm, ss;
-                int tns, thh, tmm, tss;
-                tns = m_CurVideoState->ic->duration / 1000000LL;
-                thh = tns / 3600;
-                tmm = (tns % 3600) / 60;
-                tss = (tns % 60);
-                frac = x / m_CurVideoState->width;
-                ns = frac * tns;
-                hh = ns / 3600;
-                mm = (ns % 3600) / 60;
-                ss = (ns % 60);
-                av_log(NULL, AV_LOG_INFO,
-                       "Seek to %2.0f%% (%2d:%02d:%02d) of total duration (%2d:%02d:%02d)       \n", frac * 100,
-                       hh, mm, ss, thh, tmm, tss);
-                ts = frac * m_CurVideoState->ic->duration;
-                if (m_CurVideoState->ic->start_time != AV_NOPTS_VALUE)
-                    ts += m_CurVideoState->ic->start_time;
-                stream_seek(m_CurVideoState, ts, 0, 0);
-            }
             break;
         case SDL_WINDOWEVENT:
             switch (event.window.event)
@@ -468,8 +431,8 @@ void VideoCtl::do_exit()
         SDL_DestroyRenderer(renderer);
     if (vk_renderer)
         vk_renderer_destroy(vk_renderer);
-    if (window)
-        SDL_DestroyWindow(window);
+    // if (window)
+    //     SDL_DestroyWindow(window);
     uninit_opts();
     for (int i = 0; i < nb_vfilters; i++)
         av_freep(&vfilters_list[i]);
@@ -1673,7 +1636,7 @@ int VideoCtl::get_master_sync_type(VideoState *is)
     }
 }
 
-int VideoCtl::read_thread(void *arg)
+int VideoCtl::read_thread(void *arg, VideoCtl *videoctl)
 {
     VideoState *is = reinterpret_cast<VideoState *>(arg);
 
@@ -1777,6 +1740,9 @@ int VideoCtl::read_thread(void *arg)
     }
 
     is->realtime = is_realtime(ic); // 判断输入媒体源是否为实时流媒体
+
+    is->duration = ic->duration / 1000000LL;
+    //emit videoctl->SigVideoTotalSeconds(ic->duration / 1000000LL);
 
     if (show_status)
         av_dump_format(ic, 0, is->filename, 0);
@@ -3100,8 +3066,8 @@ void VideoCtl::toggle_mute()
     m_CurVideoState->audio.muted = !m_CurVideoState->audio.muted;
 }
 
-void VideoCtl::toggle_pause()
+void VideoCtl::toggle_pause(VideoState *is)
 {
-    stream_toggle_pause(m_CurVideoState);
-    m_CurVideoState->step = 0;
+    stream_toggle_pause(is);
+    is->step = 0;
 }

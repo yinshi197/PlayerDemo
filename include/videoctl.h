@@ -34,7 +34,7 @@ public:
     static double get_master_clock(VideoState *is);
     static int get_master_sync_type(VideoState *is);
 
-    static int read_thread(void *arg);
+    static int read_thread(void *arg, VideoCtl *videoCtl);
     static int decode_interrupt_cb(void *ctx);
 
     static int decoder_start(Decoder *d, int (*fn)(void *), const char *thread_name, void *arg);
@@ -73,19 +73,23 @@ public:
     static int check_stream_specifier(AVFormatContext *s, AVStream *st, const char *spec);
     static int create_hwaccel(AVBufferRef **device_ctx);
 
+    static void toggle_pause(VideoState *is);
+    void do_exit();
+
+    VideoState *m_CurVideoState = nullptr;
+    
 private:
     bool Init();
     void ConnectSig();
 
     void event_loop();
-    void do_exit();
     void refresh_loop_wait_event(SDL_Event *event);
 
     void stream_open(const char *filename, const AVInputFormat *iformat);
     void stream_close();
     void stream_component_close(int stream_index);
     void stream_cycle_channel(int codec_type);
-
+        
     int video_open();
 
     void seek_chapter(int incr);
@@ -93,7 +97,6 @@ private:
     void toggle_full_screen();
     void toggle_audio_display();
     void toggle_mute();
-    void toggle_pause();
 
     void init_clock(Clock *c, int *queue_serial);
 
@@ -124,15 +127,14 @@ private:
     bool m_initIndex;     //
     bool m_playLoopIndex; //
 
-    VideoState *m_CurVideoState = nullptr;
-
     WId play_wid; // 播放窗口
 
     int m_frameW;
     int m_frameH;
 
 signals:
-    void SigStartPlay(QString strFileName);
+    void SigVideoTotalSeconds(int nSeconds); 
+
 };
 
 #endif

@@ -400,6 +400,9 @@ typedef struct VideoState {
     int frame_drops_late;        // 延迟丢帧计数
     double audio_clock;          // 当前音频时钟
     int audio_clock_serial;      // 音频时钟序列号
+
+    void *opaque;                // 用于存储 VideoCtl 实例的指针
+    int duration;                   
 } VideoState;
 
 /* 用户配置选项与运行时状态管理 */

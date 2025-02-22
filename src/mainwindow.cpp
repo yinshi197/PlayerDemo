@@ -122,7 +122,52 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event)
 
 void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 {
-    m_Menu.exec(event->globalPos());
+    m_Menu.popup(event->globalPos());
+}
+
+void MainWindow::keyReleaseEvent(QKeyEvent *event)
+{
+    qDebug() << "MainWindow::keyEvent:" << event->key();
+	switch (event->key())
+	{
+	case Qt::Key_Return://全屏
+        OnFullScreenPlay();
+		break;
+    case Qt::Key_Left://后退5s
+        emit SigSeekBack();
+        break;
+    case Qt::Key_Right://前进5s
+        qDebug() << "前进5s";
+        emit SigSeekForward();
+        break;
+    case Qt::Key_Up://增加10音量
+        emit SigAddVolume();
+        break;
+    case Qt::Key_Down://减少10音量
+        emit SigSubVolume();
+        break;
+    case Qt::Key_Space://减少10音量
+        emit SigPlayOrPause();
+        break;
+    case Qt::Key_Escape:
+        {
+            if (isMaximized() || isFullScreen())
+            {
+                showNormal();
+                emit sigShowMax(false);
+                m_titleBar->OnChangeMaxBtnStyle(false);
+            }
+            else
+            {
+                showMaximized();
+                emit sigShowMax(true);
+                m_titleBar->OnChangeMaxBtnStyle(true);
+            }
+        }
+        break;    
+	default:
+		break;
+	}
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -172,6 +217,21 @@ void MainWindow::ConnectSig()
     connect(m_playList, &PlayList::sigPlay, m_videoShow, &Show::SigPlay);   //更新完标题栏再进行解码播放，因为解码播放会阻塞主线程
     
     connect(m_ctlBar, &CtrBar::SigShowOrHidePlaylist, this, &MainWindow::OnShowOrHidePlaylist);
+    connect(m_ctlBar, &CtrBar::SigPlaySeek, m_videoShow, &Show::OnPlaySeek);
+    connect(m_ctlBar, &CtrBar::SigPlayVolume, m_videoShow, &Show::OnPlayVolume);
+    connect(m_ctlBar, &CtrBar::SigPlayOrPause, m_videoShow, &Show::OnPause);
+    //connect(m_ctlBar, &CtrBar::SigStop, m_videoShow, &Show::OnStop);  //存在问题，需要处理资源释放
+
+    connect(m_videoShow, &Show::SigPauseStat, m_ctlBar, &CtrBar::OnPauseStat);
+
+    connect(this, &MainWindow::SigSeekForward, m_videoShow, &Show::OnSeekForward);
+    connect(this, &MainWindow::SigSeekBack, m_videoShow, &Show::OnSeekBack);
+    connect(this, &MainWindow::SigAddVolume, m_videoShow, &Show::OnAddVolume);
+    connect(this, &MainWindow::SigSubVolume, m_videoShow, &Show::OnSubVolume);
+
+    connect(m_videoShow, &Show::SigVideoVolume, m_ctlBar, &CtrBar::OnVideopVolume);
+
+    connect(m_videoShow, &Show::SigVideoTotalSeconds, m_ctlBar, &CtrBar::OnVideoTotalSeconds);
 }
 
 void MainWindow::togglePlaylist(bool visible)

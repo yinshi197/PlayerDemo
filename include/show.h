@@ -34,10 +34,13 @@ protected:
     // void resizeEvent(QResizeEvent *event);
     // void keyReleaseEvent(QKeyEvent *event);
     // void mousePressEvent(QMouseEvent *event);
+    void contextMenuEvent(QContextMenuEvent *event);
 
 private:
     void InitUi();
     void ConnectSig();
+
+    void UpdateVolume(int sign, double step);
 
     // void OnDisplayMsg(QString strMsg);
     // void OnTimerShowCursorUpdate();
@@ -57,7 +60,6 @@ signals:
     void SigPlay(QString strFile);
                                 
     void SigFullScreen();
-    void SigPlayOrPause();
     void SigStop();
     void SigShowMenu();
 
@@ -65,6 +67,21 @@ signals:
     void SigSeekBack();
     void SigAddVolume();
     void SigSubVolume();
+
+    void SigPauseStat(bool bPaused);
+
+    void SigVideoVolume(double dPercent);
+    void SigVideoTotalSeconds(int nSeconds);
+
+public slots:
+    void OnPlaySeek(double dPercent);
+    void OnPlayVolume(double dPercent);
+    void OnSeekForward();
+    void OnSeekBack();
+    void OnAddVolume();
+    void OnSubVolume();
+    void OnPause();
+    void OnStop();
 
 };
 

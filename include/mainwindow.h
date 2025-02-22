@@ -28,6 +28,9 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent* event);
 
+    //按键事件
+    void keyReleaseEvent(QKeyEvent *event);
+
     void closeEvent(QCloseEvent *event) override; // 重写关闭事件
 private:
     void ConnectSig();
@@ -57,6 +60,12 @@ private slots:
 
 signals:
     void sigShowMax(bool isMax);
+    void SigSeekForward();
+    void SigSeekBack();
+    void SigAddVolume();
+    void SigSubVolume();
+    void SigPlayOrPause();
+    void SigOpenFile(QString strFilename);
 };
 
 #endif  //MAINWINDOW_H
