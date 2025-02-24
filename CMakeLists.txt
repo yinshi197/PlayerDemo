@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5.0)
 
-project(PlayerDemo VERSION 0.1.0 LANGUAGES C CXX)   #启用C和C++的编译器。包含.c文件时需要启用C编译器
+project(player VERSION 0.1.0 LANGUAGES C CXX)   #启用C和C++的编译器。包含.c文件时需要启用C编译器
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_PREFIX_PATH "d:/QT/6.8.1/mingw_64") # Qt Kit Dir

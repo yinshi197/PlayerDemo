@@ -2,11 +2,13 @@
 #include <QFileDialog>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QInputDialog>
+#include <QMessageBox>
 
 
 MediaList::MediaList(QWidget *parent) :
     QListWidget(parent),
-    m_ActAdd(this), m_ActRemove(this), m_ActClearList(this)
+    m_ActAdd(this), m_ActRemove(this), m_ActClearList(this), m_ActAddURL(this)
 {
     Init();
 }
@@ -27,9 +29,13 @@ void MediaList::Init()
     m_ActClearList.setText(u8"清空列表");
     m_Menu.addAction(&m_ActClearList);
 
+    m_ActAddURL.setText(u8"添加网络流");
+    m_Menu.addAction(&m_ActAddURL);
+
     connect(&m_ActAdd, &QAction::triggered, this, &MediaList::AddFile);
     connect(&m_ActRemove, &QAction::triggered, this, &MediaList::RemoveFile);
     connect(&m_ActClearList, &QAction::triggered, this, &QListWidget::clear);
+    connect(&m_ActAddURL, &QAction::triggered, this, &MediaList::AddURL);
     
 }
 
@@ -71,7 +77,29 @@ void MediaList::AddFile()
     }
 }
 
+
+
 void MediaList::RemoveFile()
 {
     takeItem(currentRow());
+}
+
+void MediaList::AddURL()
+{
+    // 弹出一个输入对话框，让用户输入URL
+    bool ok;
+    QString url = QInputDialog::getText(
+        this,                                     // 父窗口
+        u8"添加网络流",                           // 对话框标题
+        u8"请输入网络流URL：",                    // 提示文本
+        QLineEdit::Normal,                        // 输入模式
+        "",                                       // 默认值
+        &ok                                       // 用户是否点击了确定
+    );
+
+    // 如果用户点击了确定并且输入不为空
+    if (ok && !url.isEmpty())
+    {
+        emit SigAddURL(url);
+    }
 }

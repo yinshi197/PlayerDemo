@@ -50,7 +50,6 @@ void Title::InitUi()
     m_gridLayout->addWidget(m_MenuBtn, 0, 1, 1, 1);
 
     m_FileNameLab->setObjectName("FileName");
-    m_FileNameLab->setText("Attack.on.Titan.The.Final.Chapters.Part2.S04E30.1080p.WEB-DL.Hi10.Chs&Cht&Eng.DDP.2.0.H.264-Q66.mkv");
     m_FileNameLab->setMargin(15);
     m_gridLayout->addWidget(m_FileNameLab, 0, 2, 1, 1);
 

@@ -43,6 +43,8 @@ public:
     static void GetPlaylist(QStringList& playList);
     static void SavePlayVolume(double& nVolume);
     static void GetPlayVolume(double& nVolume);
+	static void SaveLastPlayListIndex(int& LastPlayListIndex);
+	static void GetLastPlayListIndex(int& LastPlayListIndex);
 
     static QString GetAppVersion();
 };

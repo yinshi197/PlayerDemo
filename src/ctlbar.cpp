@@ -1,5 +1,6 @@
 #include "ctlbar.h"
 #include "globalhelper.h"
+#include "videoctl.h"
 
 CtrBar::CtrBar(QWidget *parent) : QWidget(parent)
 {
@@ -10,7 +11,6 @@ CtrBar::CtrBar(QWidget *parent) : QWidget(parent)
 
 CtrBar::~CtrBar()
 {
-
 }
 
 void CtrBar::InitUi()
@@ -23,10 +23,10 @@ void CtrBar::InitUi()
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins(0, 0, 0, 0);
 
-    topWidget = new QWidget(this);   //顶部底层窗口
+    topWidget = new QWidget(this); // 顶部底层窗口
     topWidget->setStyleSheet("background: #202129");
     topWidget->setFixedHeight(25);
-    
+
     sliderLayout = new QHBoxLayout(topWidget);
     sliderLayout->setSpacing(0);
     sliderLayout->setContentsMargins(0, 0, 0, 0);
@@ -39,7 +39,7 @@ void CtrBar::InitUi()
 
     sliderLayout->addWidget(playbackSlider, 1);
     sliderLayout->addSpacing(5);
-    
+
     // 音量控制部分
     volumeControlWidget = new QWidget(topWidget);
     volumeControlWidget->setStyleSheet("background: #202129");
@@ -172,20 +172,20 @@ void CtrBar::ConnectSig()
     connect(backwardButton, &QPushButton::clicked, this, &CtrBar::SigBackwardPlay);
     connect(forwardButton, &QPushButton::clicked, this, &CtrBar::SigForwardPlay);
 
+    connect(volumeButton, &QPushButton::clicked, this, &CtrBar::OnVolumeBtnClicked);
+
     connect(playPauseButton, &QPushButton::clicked, this, [=](){
-        emit SigPlayOrPause();
+        if (VideoCtl::GetInstance()->m_playLoopIndex)
+        {
+            emit SigPlayOrPause(); 
+        }
     });
 
-    connect(stopButton, &QPushButton::clicked, this, [=](){
-        emit SigStop();
-    });
-
-    connect(backwardButton, &QPushButton::clicked, this, [=](){
-        emit SigBackwardPlay();
-    });
-
-    connect(forwardButton, &QPushButton::clicked, this, [=](){
-        emit SigForwardPlay();
+    connect(stopButton, &QPushButton::clicked, this, [=](){ 
+        if (VideoCtl::GetInstance()->m_playLoopIndex)
+        {
+            emit SigStop(); 
+        } 
     });
 }
 
@@ -204,7 +204,15 @@ void CtrBar::OnVideoTotalSeconds(int nSeconds)
 
 void CtrBar::OnVideoPlaySeconds(int nSeconds)
 {
-    
+    int thh, tmm, tss;
+    thh = nSeconds / 3600;
+    tmm = (nSeconds % 3600) / 60;
+    tss = (nSeconds % 60);
+    QTime TotalTime(thh, tmm, tss);
+
+    currentTimeDisplay->setTime(TotalTime);
+
+    playbackSlider->setValue(nSeconds * 1.0 / m_totalPlaySeconds * MAX_SLIDER_VALUE);
 }
 
 void CtrBar::OnVideopVolume(double dPercent)
@@ -212,11 +220,12 @@ void CtrBar::OnVideopVolume(double dPercent)
     volumeSlider->setValue(dPercent * MAX_SLIDER_VALUE);
     m_lastVolumePercent = dPercent;
 
-    if(m_lastVolumePercent == 0)
+    if (m_lastVolumePercent == 0)
     {
         GlobalHelper::SetIcon(volumeButton, 12, QChar(0xf026));
     }
-    else GlobalHelper::SetIcon(volumeButton, 12, QChar(0xf028));
+    else
+        GlobalHelper::SetIcon(volumeButton, 12, QChar(0xf028));
 
     GlobalHelper::SavePlayVolume(dPercent);
 }
@@ -237,19 +246,40 @@ void CtrBar::OnPauseStat(bool bPaused)
 
 void CtrBar::OnStopFinished()
 {
+    playbackSlider->setValue(0);
+    QTime StopTime(0, 0, 0);
+    totalTimeDisplay->setTime(StopTime);
+    currentTimeDisplay->setTime(StopTime);
+    GlobalHelper::SetIcon(playPauseButton, 15, QChar(0xf04b));
+    playPauseButton->setToolTip("播放");
+}
 
+void CtrBar::OnVolumeBtnClicked()
+{
+    if (volumeButton->text() == QChar(0xf028))
+    {
+        GlobalHelper::SetIcon(volumeButton, 12, QChar(0xf026));
+        volumeSlider->setValue(0);
+        emit SigPlayVolume(0);
+    }
+    else
+    {
+        GlobalHelper::SetIcon(volumeButton, 12, QChar(0xf028));
+        volumeSlider->setValue(m_lastVolumePercent * MAX_SLIDER_VALUE);
+        emit SigPlayVolume(m_lastVolumePercent);
+    }
 }
 
 void CtrBar::OnPlaySliderValueChanged()
 {
-    double dPercent = playbackSlider->value()*1.0 / playbackSlider->maximum();
+    double dPercent = playbackSlider->value() * 1.0 / playbackSlider->maximum();
     emit SigPlaySeek(dPercent);
     qDebug() << "PlaySilder value = " << dPercent;
 }
 
 void CtrBar::OnVolumeSliderValueChanged()
 {
-    double dPercent = volumeSlider->value()*1.0 / volumeSlider->maximum();
+    double dPercent = volumeSlider->value() * 1.0 / volumeSlider->maximum();
     emit SigPlayVolume(dPercent);
 
     OnVideopVolume(dPercent);

@@ -2,6 +2,7 @@
 #include "globalhelper.h"
 #include <QHBoxLayout>
 #include <QMutex>
+#include <QFileInfo>
 
 QMutex g_show_rect_mutex;
 
@@ -11,32 +12,91 @@ Show::Show(QWidget *parent) : QWidget(parent),
 {
     m_lastFrameHeight = 0;
     m_lastFrameWidth = 0;
-    videoctl = new VideoCtl(this);
 
     InitUi();
-    ConnectSig();
+    Init();
 }
 
 Show::~Show()
 {
-    videoctl->StopPlay();
-    delete videoctl;
 }
 
-void Show::OnPlay(QString strFile)
+bool Show::Init()
 {
-    if(videoctl)
+    if (ConnectSignalSlots() == false)
     {
-        delete videoctl;
+        return false;
     }
 
-    emit SigPauseStat(false);
-    videoctl->StartPlay(strFile, m_video->winId());
-    
-    if(videoctl->m_CurVideoState->duration > 0)
-    qDebug() << "before";
-    emit SigVideoTotalSeconds(videoctl->m_CurVideoState->duration);
-    qDebug() << "duration = " << videoctl->m_CurVideoState->duration;
+    return true;
+}
+
+void Show::dropEvent(QDropEvent *event)
+{
+    const QMimeData *mimeData = event->mimeData();
+    if (mimeData->hasUrls())
+    {
+        QList<QUrl> urls = mimeData->urls();
+        foreach (const QUrl &url, urls)
+        {
+            QString filePath = url.toLocalFile();
+            QFileInfo fileInfo(filePath);
+
+            QStringList allowedExtensions = {"3gp", "wmv", "flv", "rmvb", "mp4", "avi", "mkv", "mov", "mp3", "wav", "flac"}; // 允许的扩展名
+
+            // 再次验证（防止拖放过程中文件被篡改）
+            if (fileInfo.isFile() &&
+                allowedExtensions.contains(fileInfo.suffix().toLower()))
+            {
+                qDebug() << "已接受音视频文件:" << filePath;
+                emit SigOpenFile(filePath);
+            }
+        }
+        event->acceptProposedAction();
+    }
+}
+
+void Show::dragEnterEvent(QDragEnterEvent *event)
+{
+    const QMimeData *mimeData = event->mimeData();
+
+    if (mimeData->hasUrls())
+    { // 检查是否有拖入的URL（文件/链接）
+        QList<QUrl> urls = mimeData->urls();
+        QStringList allowedExtensions = {"3gp", "wmv", "flv", "rmvb", "mp4", "avi", "mkv", "mov", "mp3", "wav", "flac"}; // 允许的扩展名
+
+        for (const QUrl &url : urls)
+        {
+            QString filePath = url.toLocalFile(); // 转换为本地文件路径
+            QFileInfo fileInfo(filePath);
+
+            // 检查是否为文件且扩展名合法
+            if (!fileInfo.isFile() ||
+                !allowedExtensions.contains(fileInfo.suffix().toLower()))
+            {
+                return; // 拒绝拖放
+            }
+        }
+
+        event->acceptProposedAction(); // 全部文件合法，接受拖放
+    }
+}
+
+void Show::resizeEvent(QResizeEvent *event)
+{
+    Q_UNUSED(event);
+
+    //ChangeShow();
+}
+
+void Show::mousePressEvent(QMouseEvent *event)
+{
+    if (event->buttons() & Qt::RightButton)
+    {
+        emit SigShowMenu();
+    }
+
+    QWidget::mousePressEvent(event);
 }
 
 void Show::contextMenuEvent(QContextMenuEvent *event)
@@ -44,22 +104,59 @@ void Show::contextMenuEvent(QContextMenuEvent *event)
     m_menu.popup(event->globalPos());
 }
 
+void Show::keyReleaseEvent(QKeyEvent *event)
+{
+    qDebug() << "Show event->key() = " << event->key();
+    switch (event->key())
+    {
+    case Qt::Key_Return: // 全屏
+        emit SigFullScreen();
+        break;
+    case Qt::Key_Left: // 后退5s
+        emit SigSeekBack();
+        break;
+    case Qt::Key_Right: // 前进5s
+        qDebug() << "前进5s";
+        emit SigSeekForward();
+        break;
+    case Qt::Key_Up: // 增加10音量
+        emit SigAddVolume();
+        break;
+    case Qt::Key_Down: // 减少10音量
+        emit SigSubVolume();
+        break;
+    case Qt::Key_Space: // 减少10音量
+        emit SigPlayOrPause();
+        break;
+    case Qt::Key_Escape:
+        emit SigFullScreen();
+        break;
+    default:
+        break;
+    }
+}
+
 void Show::InitUi()
 {
-    this->setMinimumSize(640, 480);
+    this->resize(640, 480);
     this->setStyleSheet(GlobalHelper::GetQssStr(":/qss/show.css"));
     this->setAcceptDrops(true);
     // 防止过度刷新显示
     this->setAttribute(Qt::WA_OpaquePaintEvent);
     this->setMouseTracking(true);
 
-    m_video = new QLabel(this);
-    m_video->setUpdatesEnabled(true);
-    m_video->setAlignment(Qt::AlignCenter);
+    QVBoxLayout *pVlayout = new QVBoxLayout(this);
+    pVlayout->setSpacing(0);
+    pVlayout->setContentsMargins(0, 0, 0, 0);
 
-    QHBoxLayout *hMainLay = new QHBoxLayout(this);
-    hMainLay->setContentsMargins(0, 0, 0, 0);
-    hMainLay->addWidget(m_video, 1);
+    m_video = new QLabel(this);
+    m_video->resize(this->width(), this->height());
+    m_video->setGeometry(QRect(0, 0, 640, 480));
+    m_video->setUpdatesEnabled(false);
+    m_video->setAlignment(Qt::AlignCenter);
+    //m_video->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    pVlayout->addWidget(m_video);
 
     m_actionGroup.addAction(u8"全屏");
     m_actionGroup.addAction(u8"暂停");
@@ -68,92 +165,109 @@ void Show::InitUi()
     m_menu.addActions(m_actionGroup.actions());
 }
 
-void Show::ConnectSig()
+bool Show::ConnectSignalSlots()
 {
-    connect(this, &Show::SigPlay, this, &Show::OnPlay);
-    connect(videoctl, &VideoCtl::SigVideoTotalSeconds, this, [=](int nSeconds){
-        qDebug() << "nSeconds = " << nSeconds; 
-    });
+    QList<bool> listRet;
+    bool bRet;
+
+    bRet = connect(this, &Show::SigPlay, this, &Show::OnPlay);
+    listRet.append(bRet);
+
+    timerShowCur.setInterval(2000);
+    bRet = connect(&timerShowCur, &QTimer::timeout, this, &Show::OnTimerShowCursorUpdate);
+    listRet.append(bRet);
+
+    connect(&m_actionGroup, &QActionGroup::triggered, this, &Show::OnActionsTriggered);
+
+    for (bool bReturn : listRet)
+    {
+        if (bReturn == false)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
-void Show::OnPlaySeek(double dPercent)
+void Show::ChangeShow()
 {
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
-    int64_t ts = dPercent * videoctl->m_CurVideoState->ic->duration;
-    if (videoctl->m_CurVideoState->ic->start_time != AV_NOPTS_VALUE)
-        ts += videoctl->m_CurVideoState->ic->start_time;
-    VideoCtl::stream_seek(videoctl->m_CurVideoState, ts, 0, 0);
+    QMutexLocker locker(&g_show_rect_mutex); // 自动管理锁
+
+    if (m_lastFrameWidth == 0 && m_lastFrameHeight == 0)
+    {
+        m_video->setGeometry(0, 0, width(), height());
+        qDebug() << "0 0 " << width() << " " << height() << '\n';
+        return;
+    }
+    float videoAspectRatio = static_cast<float>(m_lastFrameWidth) / static_cast<float>(m_lastFrameHeight);
+    int containerWidth = this->width();
+    int containerHeight = this->height();
+    float containerAspectRatio = static_cast<float>(containerWidth) / static_cast<float>(containerHeight);
+
+    int displayWidth, displayHeight, offsetX, offsetY;
+
+    if (videoAspectRatio > containerAspectRatio)
+    {
+        displayWidth = containerWidth;
+        displayHeight = static_cast<int>(containerWidth / videoAspectRatio);
+        offsetX = 0;
+        offsetY = (containerHeight - displayHeight) / 2;
+    }
+    else
+    {
+        displayHeight = containerHeight;
+        displayWidth = static_cast<int>(containerHeight * videoAspectRatio);
+        offsetX = (containerWidth - displayWidth) / 2;
+        offsetY = 0;
+    }
+    m_video->setGeometry(offsetX, offsetY, displayWidth, displayHeight);
+
 }
 
-void Show::OnPlayVolume(double dPercent)
+void Show::OnPlay(QString strFile)
 {
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
-    int volume = dPercent * SDL_MIX_MAXVOLUME;
-    videoctl->m_CurVideoState->audio.audio_volume = volume;
+    VideoCtl::GetInstance()->StartPlay(strFile, m_video->winId());
 }
 
-void Show::OnSeekForward()
+void Show::OnStopFinished()
 {
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
-
-    double incr = 5.0;
-    double pos = VideoCtl::get_master_clock(videoctl->m_CurVideoState);
-    if (std::isnan(pos))
-        pos = (double)(videoctl->m_CurVideoState->seek_pos / AV_TIME_BASE);
-    pos += incr;
-    if (videoctl->m_CurVideoState->ic->start_time != AV_NOPTS_VALUE && pos < videoctl->m_CurVideoState->ic->start_time / (double)AV_TIME_BASE)
-        pos = videoctl->m_CurVideoState->ic->start_time / (double)AV_TIME_BASE;
-    VideoCtl::stream_seek(videoctl->m_CurVideoState, (int64_t)(pos * AV_TIME_BASE), (int64_t)(incr * AV_TIME_BASE), 0);
+    update();
 }
 
-void Show::OnSeekBack()
+void Show::OnFrameDimensionsChanged(int FrameWidth, int FrameHeight)
 {
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
+    qDebug() << "Show::OnFrameDimensionsChanged" << FrameWidth << ", " << FrameHeight;
+    m_lastFrameWidth = FrameWidth;
+    m_lastFrameHeight = FrameHeight;
 
-    double incr = -5.0;
-    double pos = VideoCtl::get_master_clock(videoctl->m_CurVideoState);
-    if (std::isnan(pos))
-        pos = (double)(videoctl->m_CurVideoState->seek_pos / AV_TIME_BASE);
-    pos += incr;
-    if (videoctl->m_CurVideoState->ic->start_time != AV_NOPTS_VALUE && pos < videoctl->m_CurVideoState->ic->start_time / (double)AV_TIME_BASE)
-        pos = videoctl->m_CurVideoState->ic->start_time / (double)AV_TIME_BASE;
-    VideoCtl::stream_seek(videoctl->m_CurVideoState, (int64_t)(pos * AV_TIME_BASE), (int64_t)(incr * AV_TIME_BASE), 0);
+    //ChangeShow();
 }
 
-void Show::OnAddVolume()
+void Show::OnDisplayMsg(QString strMsg)
 {
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
-
-    UpdateVolume(1, SDL_VOLUME_STEP);
+    qDebug() << "Show::OnDisplayMsg " << strMsg;
 }
 
-void Show::OnSubVolume()
+void Show::OnTimerShowCursorUpdate()
 {
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
-
-    UpdateVolume(-1, SDL_VOLUME_STEP);
+    qDebug() << "Show::OnTimerShowCursorUpdate()";
+    this->setCursor(Qt::BlankCursor);
 }
 
-void Show::OnPause()
+void Show::OnActionsTriggered(QAction *action)
 {
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
-    VideoCtl::toggle_pause(videoctl->m_CurVideoState);
-    emit SigPauseStat(videoctl->m_CurVideoState->paused);
-}
-
-void Show::OnStop()
-{
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
-    videoctl->do_exit();
-    delete videoctl;
-}
-
-void Show::UpdateVolume(int sign, double step)
-{
-    if(videoctl == nullptr || videoctl->m_CurVideoState == nullptr) return;
-    double volume_level = videoctl->m_CurVideoState->audio.audio_volume ? (20 * log(videoctl->m_CurVideoState->audio.audio_volume / (double)SDL_MIX_MAXVOLUME) / log(10)) : -1000.0;
-    int new_volume = lrint(SDL_MIX_MAXVOLUME * pow(10.0, (volume_level + sign * step) / 20.0));
-    videoctl->m_CurVideoState->audio.audio_volume = av_clip(videoctl->m_CurVideoState->audio.audio_volume == new_volume ? (videoctl->m_CurVideoState->audio.audio_volume + sign) : new_volume, 0, SDL_MIX_MAXVOLUME);
-    
-    emit SigVideoVolume(videoctl->m_CurVideoState->audio.audio_volume * 1.0 / SDL_MIX_MAXVOLUME);
+    QString strAction = action->text();
+    if (strAction == "全屏")
+    {
+        emit SigFullScreen();
+    }
+    else if (strAction == "停止")
+    {
+        emit SigStop();
+    }
+    else if (strAction == "暂停" || strAction == "播放")
+    {
+        emit SigPlayOrPause();
+    }
 }

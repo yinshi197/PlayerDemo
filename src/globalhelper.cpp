@@ -87,6 +87,21 @@ void GlobalHelper::GetPlayVolume(double& nVolume)
     nVolume = settings.value("volume/size", nVolume).toDouble();
 }
 
+void GlobalHelper::SaveLastPlayListIndex(int &LastPlayListIndex)
+{
+    QString strPlayerConfigFileName = PLAYER_CONFIG_BASEDIR + QDir::separator() + PLAYER_CONFIG;
+    QSettings settings(strPlayerConfigFileName, QSettings::IniFormat);
+    settings.setValue("playlistindex", LastPlayListIndex);
+}
+
+void GlobalHelper::GetLastPlayListIndex(int &LastPlayListIndex)
+{
+    QString strPlayerConfigFileName = PLAYER_CONFIG_BASEDIR + QDir::separator() + PLAYER_CONFIG;
+    QSettings settings(strPlayerConfigFileName, QSettings::IniFormat);
+    QString str = settings.value("playlistindex").toString();
+    LastPlayListIndex = settings.value("playlistindex", LastPlayListIndex).toInt();
+}
+
 QString GlobalHelper::GetAppVersion()
 {
     return APP_VERSION;

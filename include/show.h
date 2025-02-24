@@ -21,31 +21,22 @@ public:
     Show(QWidget *parent);
     ~Show();
 
-    void OnPlay(QString strFile);
-    // void OnStopFinished();
-
-    // void OnFrameDimensionsChanged(int FrameWidth, int FrameHeight);
+    bool Init();
 
     QLabel *m_video = nullptr;
-    VideoCtl *videoctl = nullptr;
 protected:
-    // void dropEvent(QDropEvent *event);
-    // void dragEnterEvent(QDragEnterEvent *event);
-    // void resizeEvent(QResizeEvent *event);
-    // void keyReleaseEvent(QKeyEvent *event);
-    // void mousePressEvent(QMouseEvent *event);
+    void dropEvent(QDropEvent *event);
+    void dragEnterEvent(QDragEnterEvent *event);
+    void resizeEvent(QResizeEvent *event);
+    void mousePressEvent(QMouseEvent *event);
     void contextMenuEvent(QContextMenuEvent *event);
+
+    void keyReleaseEvent(QKeyEvent *event);
 
 private:
     void InitUi();
-    void ConnectSig();
-
-    void UpdateVolume(int sign, double step);
-
-    // void OnDisplayMsg(QString strMsg);
-    // void OnTimerShowCursorUpdate();
-    // void OnActionsTriggered(QAction *action);
-    // void ChangeShow();
+    bool ConnectSignalSlots();
+    void ChangeShow();
 
     int m_lastFrameWidth; ///< 记录视频宽高
     int m_lastFrameHeight;
@@ -60,6 +51,7 @@ signals:
     void SigPlay(QString strFile);
                                 
     void SigFullScreen();
+    void SigPlayOrPause();
     void SigStop();
     void SigShowMenu();
 
@@ -68,21 +60,16 @@ signals:
     void SigAddVolume();
     void SigSubVolume();
 
-    void SigPauseStat(bool bPaused);
-
-    void SigVideoVolume(double dPercent);
-    void SigVideoTotalSeconds(int nSeconds);
-
 public slots:
-    void OnPlaySeek(double dPercent);
-    void OnPlayVolume(double dPercent);
-    void OnSeekForward();
-    void OnSeekBack();
-    void OnAddVolume();
-    void OnSubVolume();
-    void OnPause();
-    void OnStop();
+    void OnPlay(QString strFile);
+    void OnStopFinished();
 
+    void OnFrameDimensionsChanged(int FrameWidth, int FrameHeight);
+
+private slots:
+    void OnDisplayMsg(QString strMsg);
+    void OnTimerShowCursorUpdate();
+    void OnActionsTriggered(QAction *action);
 };
 
 #endif

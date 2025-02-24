@@ -12,90 +12,101 @@ class VideoCtl : public QObject
     Q_OBJECT
 
 public:
-    explicit VideoCtl(QObject *parent = nullptr);
+    static VideoCtl *GetInstance();
     ~VideoCtl();
+
+
+    static int read_thread_wrapper(void *arg);
+    static int audio_thread_wrapper(void *arg);
+    static int video_thread_wrapper(void *arg);
+    static int subtitle_thread_wrapper(void *arg);
 
     void StartPlay(QString strFileName, WId widPlayWid);
     void StopPlay();
 
-    static int audio_open(void *opaque, AVChannelLayout *wanted_channel_layout,
-                          int wanted_sample_rate, struct AudioParams *audio_hw_params);
+    void LoopThread(VideoState* CurStream);
 
-    static void sdl_audio_callback(void *opaque, Uint8 *stream, int len);
-    static void set_clock_at(Clock *c, double pts, int serial, double time);
-    static void sync_clock_to_slave(Clock *c, Clock *slave);
-    static double get_clock(Clock *c);
-    static void set_clock(Clock *c, double pts, int serial);
+    int audio_open(void *opaque, AVChannelLayout *wanted_channel_layout,
+                   int wanted_sample_rate, struct AudioParams *audio_hw_params);
 
-    static void update_sample_display(VideoState *is, short *samples, int samples_size);
+    void set_clock_at(Clock *c, double pts, int serial, double time);
+    void sync_clock_to_slave(Clock *c, Clock *slave);
+    double get_clock(Clock *c);
+    void set_clock(Clock *c, double pts, int serial);
 
-    static int audio_decode_frame(VideoState *is);
-    static int synchronize_audio(VideoState *is, int nb_samples);
-    static double get_master_clock(VideoState *is);
-    static int get_master_sync_type(VideoState *is);
+    void update_sample_display(VideoState *is, short *samples, int samples_size);
 
-    static int read_thread(void *arg, VideoCtl *videoCtl);
-    static int decode_interrupt_cb(void *ctx);
+    int audio_decode_frame(VideoState *is);
+    int synchronize_audio(VideoState *is, int nb_samples);
+    double get_master_clock(VideoState *is);
+    int get_master_sync_type(VideoState *is);
 
-    static int decoder_start(Decoder *d, int (*fn)(void *), const char *thread_name, void *arg);
+    int read_thread(void *arg);
 
-    static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int by_bytes);
-    static void step_to_next_frame(VideoState *is);
-    static void stream_toggle_pause(VideoState *is);
-    static int stream_has_enough_packets(AVStream *st, int stream_id, PacketQueue *queue);
+    int decoder_start(Decoder *d, int (*fn)(void *), const char *thread_name, void *arg);
 
-    static int stream_component_open(VideoState *is, int stream_index);
+    void stream_seek(VideoState *is, int64_t pos, int64_t rel, int by_bytes);
+    void step_to_next_frame(VideoState *is);
+    void stream_toggle_pause(VideoState *is);
+    int stream_has_enough_packets(AVStream *st, int stream_id, PacketQueue *queue);
 
-    static int audio_thread(void *arg);
-    static inline int cmp_audio_fmts(enum AVSampleFormat fmt1, int64_t channel_count1,
-                                     enum AVSampleFormat fmt2, int64_t channel_count2);
-    static int configure_audio_filters(VideoState *is, const char *afilters, int force_output_format);
+    int stream_component_open(VideoState *is, int stream_index);
 
-    static int video_thread(void *arg);
-    static int get_video_frame(VideoState *is, AVFrame *frame);
-    static int queue_picture(VideoState *is, AVFrame *src_frame,
-                             double pts, double duration, int64_t pos, int serial);
-    static void set_default_window_size(int width, int height, AVRational sar);
-    static void calculate_display_rect(SDL_Rect *rect,
-                                       int scr_xleft, int scr_ytop, int scr_width, int scr_height,
-                                       int pic_width, int pic_height, AVRational pic_sar);
-    static int configure_video_filters(AVFilterGraph *graph,
-                                       VideoState *is, const char *vfilters, AVFrame *frame);
-    static int configure_filtergraph(AVFilterGraph *graph, const char *filtergraph,
-                                     AVFilterContext *source_ctx, AVFilterContext *sink_ctx);
+    int audio_thread(void *arg);
+    inline int cmp_audio_fmts(enum AVSampleFormat fmt1, int64_t channel_count1,
+                              enum AVSampleFormat fmt2, int64_t channel_count2);
+    int configure_audio_filters(VideoState *is, const char *afilters, int force_output_format);
 
-    static int subtitle_thread(void *arg);
+    int video_thread(void *arg);
+    int get_video_frame(VideoState *is, AVFrame *frame);
+    int queue_picture(VideoState *is, AVFrame *src_frame,
+                      double pts, double duration, int64_t pos, int serial);
+    void set_default_window_size(int width, int height, AVRational sar);
+    void calculate_display_rect(SDL_Rect *rect,
+                                int scr_xleft, int scr_ytop, int scr_width, int scr_height,
+                                int pic_width, int pic_height, AVRational pic_sar);
+    int configure_video_filters(AVFilterGraph *graph,
+                                VideoState *is, const char *vfilters, AVFrame *frame);
+    int configure_filtergraph(AVFilterGraph *graph, const char *filtergraph,
+                              AVFilterContext *source_ctx, AVFilterContext *sink_ctx);
 
-    static int filter_codec_opts(const AVDictionary *opts, enum AVCodecID codec_id,
-                                 AVFormatContext *s, AVStream *st, const AVCodec *codec,
-                                 AVDictionary **dst);
+    int subtitle_thread(void *arg);
 
-    static int check_stream_specifier(AVFormatContext *s, AVStream *st, const char *spec);
-    static int create_hwaccel(AVBufferRef **device_ctx);
+    int filter_codec_opts(const AVDictionary *opts, enum AVCodecID codec_id,
+                          AVFormatContext *s, AVStream *st, const AVCodec *codec,
+                          AVDictionary **dst);
 
-    static void toggle_pause(VideoState *is);
-    void do_exit();
+    int check_stream_specifier(AVFormatContext *s, AVStream *st, const char *spec);
+    int create_hwaccel(AVBufferRef **device_ctx);
+
+    void toggle_pause(VideoState *is);
+    void do_exit(VideoState *is);
+
+    void stream_cycle_channel(int codec_type);
+    void toggle_audio_display();
 
     VideoState *m_CurVideoState = nullptr;
-    
+    bool m_playLoopIndex;
+
 private:
+    explicit VideoCtl(QObject *parent = nullptr);
+
     bool Init();
-    void ConnectSig();
+    bool ConnectSignalSlots();
 
-    void event_loop();
-    void refresh_loop_wait_event(SDL_Event *event);
+    void UpdateVolume(int sign, double step);
 
-    void stream_open(const char *filename, const AVInputFormat *iformat);
-    void stream_close();
+    void refresh_loop_wait_event(VideoState* is, SDL_Event* event);
+
+    VideoState* stream_open(const char *filename, const AVInputFormat *iformat);
+    void stream_close(VideoState *is);
     void stream_component_close(int stream_index);
-    void stream_cycle_channel(int codec_type);
-        
+
     int video_open();
 
     void seek_chapter(int incr);
 
     void toggle_full_screen();
-    void toggle_audio_display();
     void toggle_mute();
 
     void init_clock(Clock *c, int *queue_serial);
@@ -124,17 +135,53 @@ private:
     inline void fill_rectangle(int x, int y, int w, int h);
     inline int compute_mod(int a, int b);
 
-    bool m_initIndex;     //
-    bool m_playLoopIndex; //
 
+    static VideoCtl* m_pInstance;
+
+    bool m_initIndex;
+    
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_RendererInfo renderer_info = { 0 };
+    SDL_AudioDeviceID audio_dev;
     WId play_wid; // 播放窗口
+
+    int screen_width;
+    int screen_height;
+    int startup_volume;
+
+    //播放刷新循环线程
+    std::thread m_tPlayLoopThread;
 
     int m_frameW;
     int m_frameH;
 
 signals:
-    void SigVideoTotalSeconds(int nSeconds); 
+    void SigPlayMsg(QString strMsg);                                   //< 错误信息
+    void SigFrameDimensionsChanged(int nFrameWidth, int nFrameHeight); //<视频宽高发生变化
 
+    void SigVideoTotalSeconds(int nSeconds);
+    void SigVideoPlaySeconds(int nSeconds);
+
+    void SigVideoVolume(double dPercent);
+    void SigPauseStat(bool bPaused);
+
+    void SigStop();
+    void SigStopAndNext();
+
+    void SigStopFinished(); // 停止播放完成
+
+    void SigStartPlay(QString strFileName);
+
+public slots:
+    void OnPlaySeek(double dPercent);
+    void OnPlayVolume(double dPercent);
+    void OnPause();
+    void OnStop();
+    void OnSeekForward();
+    void OnSeekBack();
+    void OnAddVolume();
+    void OnSubVolume();
 };
 
 #endif

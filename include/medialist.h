@@ -21,14 +21,17 @@ protected:
 private:
     void AddFile();
     void RemoveFile();
+    void AddURL();
 
     QMenu m_Menu;
     QAction m_ActAdd;
+    QAction m_ActAddURL;
     QAction m_ActRemove;
     QAction m_ActClearList;
 
 signals:
     void SigAddFile(QString strFileName);
+    void SigAddURL(QString url);
 };
 
 #endif

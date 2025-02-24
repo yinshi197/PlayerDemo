@@ -40,6 +40,7 @@ public slots:
     void OnAddFileAndPlay(QString strFileName);
     void OnBackwardPlay();
     void OnForwardPlay();
+    void OnAddURL(QString url);
 
 private slots:
     void OnListItemDoubleClicked(QListWidgetItem *item);
